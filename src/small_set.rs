@@ -43,7 +43,7 @@ impl_bits!(u64);
 impl_bits!(u128);
 
 /// Do vEB tree operations
-/// on integers in [0, 64)
+/// on integers in [0, 1 << BITS = size_of::<T>()*8)
 #[derive(Clone, Copy)]
 pub struct SmallSet<const BITS: usize, T: Copy> {
     bits: T,
