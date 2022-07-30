@@ -89,8 +89,6 @@ where
     }
 
     fn insert(&mut self, mut x: usize) -> bool {
-        debug_assert!(x < Self::CAPACITY);
-
         if self.is_empty() {
             self.min = x;
             self.max = x;
@@ -100,6 +98,11 @@ where
         if x < self.min {
             core::mem::swap(&mut x, &mut self.min);
         }
+
+        if x == self.min {
+            return false;
+        }
+
         if x > self.max {
             self.max = x;
         }
@@ -112,8 +115,6 @@ where
     }
 
     fn remove(&mut self, mut x: usize) -> bool {
-        debug_assert!(x < Self::CAPACITY);
-
         if self.min == self.max {
             return if x == self.min {
                 self.min = usize::MAX;
@@ -178,14 +179,14 @@ where
             }
         }
 
-        if let Some(ux) =
-            (ux > 0).then(|| self.upper.prev(ux - 1).expect("self.min <= x < self.max"))
-        {
-            let lx = self.lower[ux].last().expect("self.min <= x < self.max");
-            Some((ux << Lower::BITS) + lx)
-        } else {
-            Some(self.min)
+        if ux > 0 {
+            if let Some(ux) = self.upper.prev(ux - 1) {
+                let lx = self.lower[ux].last().expect("self.min <= x < self.max");
+                return Some((ux << Lower::BITS) + lx);
+            }
         }
+
+        Some(self.min)
     }
 
     fn first(&self) -> Option<usize> {
