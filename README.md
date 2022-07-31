@@ -4,18 +4,17 @@ Fast implementation of vEB trees without internal allocation.
 
 van Emde Boas tree is a data structure for maintaining
 a set of integers of bounded size supporting the following queries:
-
- * `insert(x)`   - inserts the integer x into the set
- * `remove(x)`   - removes the integer x from the set
- * `contains(x)` - returns whether the set contains x
- * `next(x)`     - returns the smallest integer in the
-                 set that is greater or equal to x
- * `prev(x)`     - returns the smallest integer in the
-                 set that is greater or equal to x
+  insert(x) - inserts the integer x into the set
+  remove(x) - removes the integer x from the set
+contains(x) - returns whether the set contains x
+    next(x) - returns the smallest integer in the
+              set that is greater or equal to x
+    prev(x) - returns the smallest integer in the
+              set that is greater or equal to x
 
 All of these use $\mathcal{O}(\log \log U)$ time,
-and the structure uses $\mathcal{O}(U)$ space,
-where $U$ is the biggest integer you can put in the set.
+and the structure uses $\matchcal{O}(U)$ space,
+where U is the biggest integer you can put in the set.
 
 
 ## Usage
