@@ -1,6 +1,7 @@
 [package]
 name = "flat-veb"
+description = "Fast implementation of vEB trees without internal allocation."
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Fast implementation of vEB trees without internal allocation."
+repository = "https://github.com/Hegdahl/flat-veb"
