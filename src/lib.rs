@@ -10,8 +10,8 @@
 //!     prev(x) - returns the smallest integer in the
 //!               set that is greater or equal to x
 //!
-//! All of these use O(log log U) time,
-//! and the structure uses O(U) space,
+//! All of these use $\mathcal{O}(\log \log U)$ time,
+//! and the structure uses $\matchcal{O}(U)$ space,
 //! where U is the biggest integer you can put in the set.
 //! 
 //!
