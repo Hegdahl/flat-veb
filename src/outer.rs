@@ -153,7 +153,7 @@ where
                 self.upper.remove(ux);
             }
 
-            if x == self.max {
+            if x != self.min && x == self.max {
                 self.max = self.prev(x - 1).expect("self.min != self.max");
             }
 
