@@ -83,7 +83,6 @@
 //! # Todo
 //!
 //! - better benchmarks
-//! - create a function to return a Box<dyn VEBTree> of appropriate capacity
 //! - reverse iterator
 #![no_std]
 #![feature(generic_const_exprs, type_alias_impl_trait)]

@@ -85,7 +85,6 @@ amount of the time spent for the `VEBTree`. Better benchmarks are needed.
 ## Todo
 
 - better benchmarks
-- create a function to return a Box<dyn VEBTree> of appropriate capacity
 - reverse iterator
 
 License: MIT
