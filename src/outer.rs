@@ -1,8 +1,8 @@
-use super::VEBTree;
+use crate::{private::Seal, InnerVEBTree};
 
 /// Recursive implementation of a van Emde Boas Tree.
 #[derive(Clone, Copy)]
-pub struct OuterVEBTree<Upper: VEBTree, Lower: VEBTree>
+pub struct VEBTree<Upper: InnerVEBTree, Lower: InnerVEBTree>
 where
     [(); Upper::CAPACITY]:,
 {
@@ -12,11 +12,41 @@ where
     max: usize,
 }
 
-impl<Upper: VEBTree, Lower: VEBTree> Default for OuterVEBTree<Upper, Lower>
+impl<Upper: InnerVEBTree, Lower: InnerVEBTree> Seal for VEBTree<Upper, Lower> where
+    [(); Upper::CAPACITY]:
+{
+}
+
+impl<Upper: InnerVEBTree, Lower: InnerVEBTree> Default for VEBTree<Upper, Lower>
 where
     [(); Upper::CAPACITY]:,
 {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<Upper: InnerVEBTree, Lower: InnerVEBTree> core::fmt::Debug for VEBTree<Upper, Lower>
+where
+    [(); Upper::CAPACITY]:,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_set().entries(crate::VEBTree::iter(self)).finish()
+    }
+}
+
+impl<Upper: InnerVEBTree, Lower: InnerVEBTree> InnerVEBTree for VEBTree<Upper, Lower>
+where
+    [(); Upper::CAPACITY]:,
+{
+    const BITS: usize = Upper::BITS + Lower::BITS;
+}
+
+impl<Upper: InnerVEBTree, Lower: InnerVEBTree> VEBTree<Upper, Lower>
+where
+    [(); Upper::CAPACITY]:,
+{
+    pub fn new() -> Self {
         Self {
             upper: Default::default(),
             lower: [Default::default(); Upper::CAPACITY],
@@ -24,35 +54,18 @@ where
             max: usize::MAX,
         }
     }
-}
 
-impl<Upper: VEBTree, Lower: VEBTree> core::fmt::Debug for OuterVEBTree<Upper, Lower>
-where
-    [(); Upper::CAPACITY]:,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_set().entries(self.iter()).finish()
-    }
-}
-
-impl<Upper: VEBTree, Lower: VEBTree> OuterVEBTree<Upper, Lower>
-where
-    [(); Upper::CAPACITY]:,
-{
     fn ul(x: usize) -> (usize, usize) {
         let ux = x >> Lower::BITS;
-        let lx = x & Lower::MASK;
+        let lx = x & (Lower::CAPACITY - 1);
         (ux, lx)
     }
-}
 
-impl<Upper: VEBTree, Lower: VEBTree> VEBTree for OuterVEBTree<Upper, Lower>
-where
-    [(); Upper::CAPACITY]:,
-{
-    const BITS: usize = Upper::BITS + Lower::BITS;
+    pub fn capacity() -> usize {
+        Self::CAPACITY
+    }
 
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.upper.clear();
         for low in &mut self.lower {
             low.clear();
@@ -61,11 +74,11 @@ where
         self.max = usize::MAX;
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.min == usize::MAX
     }
 
-    fn contains(&self, x: usize) -> bool {
+    pub fn contains(&self, x: usize) -> bool {
         debug_assert!(x < Self::CAPACITY);
 
         if x < self.min {
@@ -88,7 +101,9 @@ where
         self.lower[ux].contains(lx)
     }
 
-    fn insert(&mut self, mut x: usize) -> bool {
+    pub fn insert(&mut self, mut x: usize) -> bool {
+        debug_assert!(x < Self::CAPACITY);
+
         if self.is_empty() {
             self.min = x;
             self.max = x;
@@ -114,7 +129,9 @@ where
         self.lower[ux].insert(lx)
     }
 
-    fn remove(&mut self, mut x: usize) -> bool {
+    pub fn remove(&mut self, mut x: usize) -> bool {
+        debug_assert!(x < Self::CAPACITY);
+
         if self.min == self.max {
             return if x == self.min {
                 self.min = usize::MAX;
@@ -137,7 +154,7 @@ where
             }
 
             if x == self.max {
-                self.max = self.prev(x - 1).expect("self.min != self.max")
+                self.max = self.prev(x - 1).expect("self.min != self.max");
             }
 
             true
@@ -147,7 +164,9 @@ where
         }
     }
 
-    fn next(&self, x: usize) -> Option<usize> {
+    pub fn next(&self, x: usize) -> Option<usize> {
+        debug_assert!(x < Self::CAPACITY);
+
         if self.is_empty() || x > self.max {
             return None;
         }
@@ -168,7 +187,9 @@ where
         Some((ux << Lower::BITS) + lx)
     }
 
-    fn prev(&self, x: usize) -> Option<usize> {
+    pub fn prev(&self, x: usize) -> Option<usize> {
+        debug_assert!(x < Self::CAPACITY);
+
         if self.is_empty() || x < self.min {
             return None;
         }
@@ -189,11 +210,56 @@ where
         Some(self.min)
     }
 
-    fn first(&self) -> Option<usize> {
+    pub fn first(&self) -> Option<usize> {
         (!self.is_empty()).then_some(self.min)
     }
 
-    fn last(&self) -> Option<usize> {
+    pub fn last(&self) -> Option<usize> {
         (!self.is_empty()).then_some(self.max)
+    }
+}
+
+impl<Upper: InnerVEBTree, Lower: InnerVEBTree> crate::VEBTree for VEBTree<Upper, Lower>
+where
+    [(); Upper::CAPACITY]:,
+{
+    fn capacity(&self) -> usize {
+        Self::capacity()
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
+    fn contains(&self, x: usize) -> bool {
+        self.contains(x)
+    }
+
+    fn insert(&mut self, x: usize) -> bool {
+        self.insert(x)
+    }
+
+    fn remove(&mut self, x: usize) -> bool {
+        self.remove(x)
+    }
+
+    fn next(&self, x: usize) -> Option<usize> {
+        self.next(x)
+    }
+
+    fn prev(&self, x: usize) -> Option<usize> {
+        self.prev(x)
+    }
+
+    fn first(&self) -> Option<usize> {
+        self.first()
+    }
+
+    fn last(&self) -> Option<usize> {
+        self.last()
     }
 }

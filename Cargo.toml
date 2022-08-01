@@ -1,7 +1,12 @@
 [package]
 name = "flat-veb"
 description = "Fast implementation of vEB trees without internal allocation."
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/Hegdahl/flat-veb"
+
+[features]
+default = ["dyn_capacity"]
+# Enables the functions new_with_capacity and new_with_bits
+dyn_capacity = []

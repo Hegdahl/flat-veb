@@ -1,7 +1,7 @@
-use super::VEBTree;
+use crate::{private::Seal, InnerVEBTree, VEBTree};
 use core::ops::{BitAnd, BitOr, Not, Shl, Shr, Sub};
 
-trait Bits:
+pub trait Bits:
     Copy
     + PartialEq
     + Eq
@@ -42,16 +42,26 @@ impl_bits!(u32);
 impl_bits!(u64);
 impl_bits!(u128);
 
-/// Do vEB tree operations
-/// on integers in [0, 1 << BITS = size_of::<T>()*8)
+/// Base case implementation of `VEBTree` for small integers.
+/// Maintains a set of integers from
+/// 0 to (exclusive) `1 << BITS = size_of::<T>()*8`.
+/// using `T` as a collection of flags.
 #[derive(Clone, Copy)]
-pub struct SmallSet<const BITS: usize, T: Copy> {
+pub struct SmallSet<const BITS: usize, T: Bits> {
     bits: T,
+}
+
+impl<const BITS: usize, T: Bits> Seal for SmallSet<BITS, T> {}
+
+impl<const BITS: usize, T: Bits> SmallSet<BITS, T> {
+    pub fn new() -> Self {
+        Self { bits: T::zero() }
+    }
 }
 
 impl<const BITS: usize, T: Bits> Default for SmallSet<BITS, T> {
     fn default() -> Self {
-        Self { bits: T::zero() }
+        Self::new()
     }
 }
 
@@ -61,55 +71,103 @@ impl<const BITS: usize, T: Bits> core::fmt::Debug for SmallSet<BITS, T> {
     }
 }
 
-impl<const BITS: usize, T: Bits> VEBTree for SmallSet<BITS, T> {
-    const BITS: usize = BITS;
+impl<const BITS: usize, T: Bits> SmallSet<BITS, T> {
+    pub fn capacity() -> usize {
+        Self::CAPACITY
+    }
 
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.bits = T::zero();
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.bits == T::zero()
     }
 
-    fn contains(&self, x: usize) -> bool {
+    pub fn contains(&self, x: usize) -> bool {
         debug_assert!(x < Self::CAPACITY);
         self.bits >> x & T::one() != T::zero()
     }
 
-    fn insert(&mut self, x: usize) -> bool {
+    pub fn insert(&mut self, x: usize) -> bool {
         let was = self.contains(x);
         self.bits = self.bits | T::one() << x;
         !was
     }
 
-    fn remove(&mut self, x: usize) -> bool {
+    pub fn remove(&mut self, x: usize) -> bool {
         let was = self.contains(x);
         self.bits = self.bits & !(T::one() << x);
         was
     }
 
-    fn next(&self, x: usize) -> Option<usize> {
+    pub fn next(&self, x: usize) -> Option<usize> {
         debug_assert!(x < Self::CAPACITY);
         let big_enough = self.bits & !((T::one() << x) - T::one());
         (big_enough != T::zero()).then(|| big_enough.trailing_zeros())
     }
 
-    fn prev(&self, x: usize) -> Option<usize> {
+    pub fn prev(&self, x: usize) -> Option<usize> {
         debug_assert!(x < Self::CAPACITY);
         let small_enough = if x == Self::CAPACITY - 1 {
             self.bits
         } else {
-            self.bits & ((T::one() << x + 1) - T::one())
+            self.bits & ((T::one() << (x + 1)) - T::one())
         };
         (small_enough != T::zero()).then(|| Self::CAPACITY - 1 - small_enough.leading_zeros())
     }
 
-    fn first(&self) -> Option<usize> {
+    pub fn first(&self) -> Option<usize> {
         (self.bits != T::zero()).then(|| self.bits.trailing_zeros())
     }
 
-    fn last(&self) -> Option<usize> {
+    pub fn last(&self) -> Option<usize> {
         (self.bits != T::zero()).then(|| Self::CAPACITY - 1 - self.bits.leading_zeros())
+    }
+}
+
+impl<const BITS: usize, T: Bits> InnerVEBTree for SmallSet<BITS, T> {
+    const BITS: usize = BITS;
+}
+
+impl<const BITS: usize, T: Bits> VEBTree for SmallSet<BITS, T> {
+    fn capacity(&self) -> usize {
+        Self::capacity()
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
+    fn contains(&self, x: usize) -> bool {
+        self.contains(x)
+    }
+
+    fn insert(&mut self, x: usize) -> bool {
+        self.insert(x)
+    }
+
+    fn remove(&mut self, x: usize) -> bool {
+        self.remove(x)
+    }
+
+    fn next(&self, x: usize) -> Option<usize> {
+        self.next(x)
+    }
+
+    fn prev(&self, x: usize) -> Option<usize> {
+        self.prev(x)
+    }
+
+    fn first(&self) -> Option<usize> {
+        self.first()
+    }
+
+    fn last(&self) -> Option<usize> {
+        self.last()
     }
 }
