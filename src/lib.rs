@@ -85,8 +85,7 @@
 //! - better benchmarks
 //! - reverse iterator
 #![no_std]
-#![feature(generic_const_exprs, type_alias_impl_trait)]
-#![allow(incomplete_features)]
+#![cfg(feature = "dyn_capacity")]
 #![warn(missing_docs, missing_debug_implementations)]
 #![warn(clippy::pedantic)]
 
@@ -101,7 +100,18 @@ mod dyn_capacity;
 pub use dyn_capacity::{new_with_bits, new_with_capacity};
 
 mod private {
-    pub trait Seal {}
+    /// Both a promise that the type is zeroable,
+    /// and functions as a seal for the crate,
+    /// meaning traits implying `ZeroableSeal`
+    /// can not be implemented downstream.
+    /// 
+    /// 
+    /// # Safety
+    /// 
+    /// Should only be implemented by types which
+    /// are in a valid state when the underlying
+    /// memory is set to 0.
+    pub unsafe trait ZeroableSeal {}
 }
 
 /// Constants and implied traits for the `VEBTree` trait,
@@ -122,9 +132,8 @@ pub trait InnerVEBTree: Copy + Sized + Default + VEBTree {
 /// use `&impl VEBTree` in the signature.
 ///
 /// The type of a specific size is `SizedVEBTree<BITS>`.
-pub trait VEBTree: private::Seal + core::fmt::Debug {
+pub trait VEBTree: private::ZeroableSeal + core::fmt::Debug {
     /// Trait object version of `VEBTreeWithConstants::CAPACITY`.
-    #[allow(clippy::unused_self)]
     fn capacity(&self) -> usize;
 
     /// Clears the set, removing all elements.

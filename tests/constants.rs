@@ -22,4 +22,7 @@ fn constants_are_correct() {
         T T T T T T T T
         T
     }
+
+    let t = flat_veb::new_with_capacity(1 << 30);
+    assert_eq!(t.capacity(), 1 << 30);
 }

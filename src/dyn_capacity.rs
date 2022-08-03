@@ -1,6 +1,32 @@
 extern crate alloc;
+use core::alloc::Layout;
+
 use crate::{InnerVEBTree, SizedVEBTree, VEBTree};
-use alloc::boxed::Box;
+use alloc::{alloc::alloc_zeroed, boxed::Box};
+
+/// Gets a new empty boxed instance of `T`
+/// initialized without storing
+/// the object on the stack.
+/// 
+/// This is necessary because `VEBTree`s
+/// with high capacities are very big objects
+/// using more space than a typical stack
+/// size limit, and from experimentation
+/// the `T::default()` call inside `Box::default()`
+/// doesn't get inlined, leading to storing `T`
+/// on the stack.
+pub fn new_boxed<T: VEBTree>() -> Box<T> {
+    let layout = Layout::new::<T>();
+    assert_ne!(layout.size(), 0);
+    // Safety:
+    // `ZeroableSeal` is implied by `VEBTree`.
+    unsafe {
+        let mem = alloc_zeroed(layout).cast();
+        let mut b = Box::<T>::from_raw(mem);
+        b.clear();
+        b
+    }
+}
 
 /// Get the smallest capacity `VEBTree` implementation which
 /// can hold integers of size at least `capacity - 1`.
@@ -14,14 +40,10 @@ use alloc::boxed::Box;
 /// capacities than that, like running out of memory.
 #[must_use]
 pub fn new_with_capacity(capacity: usize) -> Box<dyn VEBTree> {
-    if capacity <= SizedVEBTree::<7>::CAPACITY {
-        return Box::<SizedVEBTree<7>>::default();
-    }
-
     macro_rules! inner {
         ($n:expr, T T T T $($tail:tt)*) => {
             if capacity <= SizedVEBTree::<{ $n }>::CAPACITY {
-                return Box::<SizedVEBTree<{ $n }>>::default();
+                return new_boxed::<SizedVEBTree<{ $n }>>();
             }
 
             inner! {($n+1), T T T $($tail)*}

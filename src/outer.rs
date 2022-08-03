@@ -1,55 +1,63 @@
-use crate::{private::Seal, InnerVEBTree};
+use crate::{private::ZeroableSeal, InnerVEBTree};
 
 /// Recursive implementation of a van Emde Boas Tree.
 #[derive(Clone, Copy)]
-pub struct VEBTree<Upper: InnerVEBTree, Lower: InnerVEBTree>
+pub struct VEBTree<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree>
 where
-    [(); Upper::CAPACITY]:,
+    [(); UPPER_CAPACITY]:,
 {
     upper: Upper,
-    lower: [Lower; Upper::CAPACITY],
+    lower: [Lower; UPPER_CAPACITY],
     min: usize,
     max: usize,
 }
 
-impl<Upper: InnerVEBTree, Lower: InnerVEBTree> Seal for VEBTree<Upper, Lower> where
-    [(); Upper::CAPACITY]:
+// Safety:
+// All members are zeroable.
+unsafe impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> ZeroableSeal
+    for VEBTree<UPPER_CAPACITY, Upper, Lower>
+where
+    [(); UPPER_CAPACITY]:,
 {
 }
 
-impl<Upper: InnerVEBTree, Lower: InnerVEBTree> Default for VEBTree<Upper, Lower>
+impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> Default
+    for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); Upper::CAPACITY]:,
+    [(); UPPER_CAPACITY]:,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<Upper: InnerVEBTree, Lower: InnerVEBTree> core::fmt::Debug for VEBTree<Upper, Lower>
+impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> core::fmt::Debug
+    for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); Upper::CAPACITY]:,
+    [(); UPPER_CAPACITY]:,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_set().entries(crate::VEBTree::iter(self)).finish()
     }
 }
 
-impl<Upper: InnerVEBTree, Lower: InnerVEBTree> InnerVEBTree for VEBTree<Upper, Lower>
+impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> InnerVEBTree
+    for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); Upper::CAPACITY]:,
+    [(); UPPER_CAPACITY]:,
 {
     const BITS: usize = Upper::BITS + Lower::BITS;
 }
 
-impl<Upper: InnerVEBTree, Lower: InnerVEBTree> VEBTree<Upper, Lower>
+impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree>
+    VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); Upper::CAPACITY]:,
+    [(); UPPER_CAPACITY]:,
 {
     pub fn new() -> Self {
         Self {
             upper: Default::default(),
-            lower: [Default::default(); Upper::CAPACITY],
+            lower: [Default::default(); UPPER_CAPACITY],
             min: usize::MAX,
             max: usize::MAX,
         }
@@ -219,9 +227,10 @@ where
     }
 }
 
-impl<Upper: InnerVEBTree, Lower: InnerVEBTree> crate::VEBTree for VEBTree<Upper, Lower>
+impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> crate::VEBTree
+    for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); Upper::CAPACITY]:,
+    [(); UPPER_CAPACITY]:,
 {
     fn capacity(&self) -> usize {
         Self::capacity()

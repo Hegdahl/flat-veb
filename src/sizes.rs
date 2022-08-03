@@ -27,6 +27,7 @@ macro_rules! make_veb_tree_sizes {
     ($n:expr, T T T T T T T T $($tail:tt)*) => {
         impl GetVEBTreeSize<{ $n }> for () {
             type Type = outer::VEBTree<
+                { 1 << ($n / 2) },
                 <() as GetVEBTreeSize<{ $n / 2 }>>::Type,
                 <() as GetVEBTreeSize<{ ($n + 1) / 2 }>>::Type,
             >;

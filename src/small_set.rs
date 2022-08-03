@@ -1,4 +1,4 @@
-use crate::{private::Seal, InnerVEBTree, VEBTree};
+use crate::{private::ZeroableSeal, InnerVEBTree, VEBTree};
 use core::ops::{BitAnd, BitOr, Not, Shl, Shr, Sub};
 
 pub trait Bits:
@@ -11,6 +11,7 @@ pub trait Bits:
     + Shl<usize, Output = Self>
     + Shr<usize, Output = Self>
     + Sub<Output = Self>
+    + ZeroableSeal
 {
     fn zero() -> Self;
     fn one() -> Self;
@@ -20,6 +21,9 @@ pub trait Bits:
 
 macro_rules! impl_bits {
     ($type:ty) => {
+        // Safety:
+        // Primitive integers are zeroable.
+        unsafe impl ZeroableSeal for $type {}
         impl Bits for $type {
             fn zero() -> Self {
                 0
@@ -44,14 +48,16 @@ impl_bits!(u128);
 
 /// Base case implementation of `VEBTree` for small integers.
 /// Maintains a set of integers from
-/// 0 to (exclusive) `1 << BITS = size_of::<T>()*8`.
+/// 0 to (exclusive) `1 << BITS = size_of::<T>() * 8`.
 /// using `T` as a collection of flags.
 #[derive(Clone, Copy)]
 pub struct SmallSet<const BITS: usize, T: Bits> {
     bits: T,
 }
 
-impl<const BITS: usize, T: Bits> Seal for SmallSet<BITS, T> {}
+// Safety:
+// SmallSet only contains a T, and when that T is zeroable, so is SmallSet.
+unsafe impl<const BITS: usize, T: Bits> ZeroableSeal for SmallSet<BITS, T> {}
 
 impl<const BITS: usize, T: Bits> SmallSet<BITS, T> {
     pub fn new() -> Self {
