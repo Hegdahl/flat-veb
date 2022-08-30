@@ -1,5 +1,11 @@
-use crate::{private::ZeroableSeal, InnerVEBTree, VEBTree};
+use crate::{
+    private::{ConditionalHasDeepMaybeUninit, Sealed},
+    InnerVEBTree, VEBTree,
+};
 use core::ops::{BitAnd, BitOr, Not, Shl, Shr, Sub};
+#[cfg(feature = "dyn_capacity")]
+use deep_maybe_uninit::DeepMaybeUninit;
+use deep_maybe_uninit::HasDeepMaybeUninit;
 
 pub trait Bits:
     Copy
@@ -11,7 +17,8 @@ pub trait Bits:
     + Shl<usize, Output = Self>
     + Shr<usize, Output = Self>
     + Sub<Output = Self>
-    + ZeroableSeal
+    + Sealed
+    + ConditionalHasDeepMaybeUninit
 {
     fn zero() -> Self;
     fn one() -> Self;
@@ -21,9 +28,7 @@ pub trait Bits:
 
 macro_rules! impl_bits {
     ($type:ty) => {
-        // Safety:
-        // Primitive integers are zeroable.
-        unsafe impl ZeroableSeal for $type {}
+        impl Sealed for $type {}
         impl Bits for $type {
             fn zero() -> Self {
                 0
@@ -50,14 +55,14 @@ impl_bits!(u128);
 /// Maintains a set of integers from
 /// 0 to (exclusive) `1 << BITS = size_of::<T>() * 8`.
 /// using `T` as a collection of flags.
+#[cfg_attr(feature = "dyn_capacity", derive(DeepMaybeUninit))]
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub struct SmallSet<const BITS: usize, T: Bits> {
     bits: T,
 }
 
-// Safety:
-// SmallSet only contains a T, and when that T is zeroable, so is SmallSet.
-unsafe impl<const BITS: usize, T: Bits> ZeroableSeal for SmallSet<BITS, T> {}
+impl<const BITS: usize, T: Bits> Sealed for SmallSet<BITS, T> {}
 
 impl<const BITS: usize, T: Bits> SmallSet<BITS, T> {
     pub fn new() -> Self {
@@ -80,6 +85,11 @@ impl<const BITS: usize, T: Bits> core::fmt::Debug for SmallSet<BITS, T> {
 impl<const BITS: usize, T: Bits> SmallSet<BITS, T> {
     pub fn capacity() -> usize {
         Self::CAPACITY
+    }
+
+    #[cfg(feature = "dyn_capacity")]
+    pub fn init(value: &mut <Self as HasDeepMaybeUninit>::AsDeepMaybeUninit) {
+        value.bits = T::zero().forget_init();
     }
 
     pub fn clear(&mut self) {
@@ -139,6 +149,11 @@ impl<const BITS: usize, T: Bits> InnerVEBTree for SmallSet<BITS, T> {
 impl<const BITS: usize, T: Bits> VEBTree for SmallSet<BITS, T> {
     fn capacity(&self) -> usize {
         Self::capacity()
+    }
+
+    #[cfg(feature = "dyn_capacity")]
+    fn init(value: &mut <Self as HasDeepMaybeUninit>::AsDeepMaybeUninit) {
+        Self::init(value);
     }
 
     fn clear(&mut self) {

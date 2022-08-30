@@ -45,7 +45,7 @@ make_veb_tree_sizes! {8,
     T T T T T T T T
     T T T T T T T T
     T T T T T T T T
-    T
+    T T T T T T T T
 }
 
 /// `VEBTree` which can hold integers with BITS bits in them.

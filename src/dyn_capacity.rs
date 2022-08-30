@@ -1,13 +1,13 @@
 extern crate alloc;
-use core::alloc::Layout;
 
 use crate::{InnerVEBTree, SizedVEBTree, VEBTree};
-use alloc::{alloc::alloc_zeroed, boxed::Box};
+use alloc::boxed::Box;
+use deep_maybe_uninit::IsDeepMaybeUninit;
 
 /// Gets a new empty boxed instance of `T`
 /// initialized without storing
 /// the object on the stack.
-/// 
+///
 /// This is necessary because `VEBTree`s
 /// with high capacities are very big objects
 /// using more space than a typical stack
@@ -15,17 +15,10 @@ use alloc::{alloc::alloc_zeroed, boxed::Box};
 /// the `T::default()` call inside `Box::default()`
 /// doesn't get inlined, leading to storing `T`
 /// on the stack.
-pub fn new_boxed<T: VEBTree>() -> Box<T> {
-    let layout = Layout::new::<T>();
-    assert_ne!(layout.size(), 0);
-    // Safety:
-    // `ZeroableSeal` is implied by `VEBTree`.
-    unsafe {
-        let mem = alloc_zeroed(layout).cast();
-        let mut b = Box::<T>::from_raw(mem);
-        b.clear();
-        b
-    }
+pub fn new_boxed<T: InnerVEBTree>() -> Box<T> {
+    let mut b = T::boxed_uninit();
+    T::init(&mut b);
+    unsafe { b.boxed_assume_init() }
 }
 
 /// Get the smallest capacity `VEBTree` implementation which

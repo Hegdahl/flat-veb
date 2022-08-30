@@ -85,7 +85,6 @@
 //! - better benchmarks
 //! - reverse iterator
 #![no_std]
-#![cfg(feature = "dyn_capacity")]
 #![warn(missing_docs, missing_debug_implementations)]
 #![warn(clippy::pedantic)]
 
@@ -97,26 +96,29 @@ pub use sizes::SizedVEBTree;
 #[cfg(feature = "dyn_capacity")]
 mod dyn_capacity;
 #[cfg(feature = "dyn_capacity")]
+use deep_maybe_uninit::HasDeepMaybeUninit;
+#[cfg(feature = "dyn_capacity")]
 pub use dyn_capacity::{new_with_bits, new_with_capacity};
 
 mod private {
-    /// Both a promise that the type is zeroable,
-    /// and functions as a seal for the crate,
-    /// meaning traits implying `ZeroableSeal`
-    /// can not be implemented downstream.
-    /// 
-    /// 
-    /// # Safety
-    /// 
-    /// Should only be implemented by types which
-    /// are in a valid state when the underlying
-    /// memory is set to 0.
-    pub unsafe trait ZeroableSeal {}
+    pub trait Sealed {}
+
+    #[cfg(feature = "dyn_capacity")]
+    pub trait ConditionalHasDeepMaybeUninit: deep_maybe_uninit::HasDeepMaybeUninit {}
+    #[cfg(feature = "dyn_capacity")]
+    impl<T: deep_maybe_uninit::HasDeepMaybeUninit> ConditionalHasDeepMaybeUninit for T {}
+
+    #[cfg(not(feature = "dyn_capacity"))]
+    pub trait ConditionalHasDeepMaybeUninit {}
+    #[cfg(not(feature = "dyn_capacity"))]
+    impl<T> ConditionalHasDeepMaybeUninit for T {}
 }
 
 /// Constants and implied traits for the `VEBTree` trait,
 /// separated out to make `VEBTree` object safe.
-pub trait InnerVEBTree: Copy + Sized + Default + VEBTree {
+pub trait InnerVEBTree:
+    Copy + Sized + Default + VEBTree + private::ConditionalHasDeepMaybeUninit
+{
     /// The set can hold values with BITS bits.
     const BITS: usize;
 
@@ -132,9 +134,18 @@ pub trait InnerVEBTree: Copy + Sized + Default + VEBTree {
 /// use `&impl VEBTree` in the signature.
 ///
 /// The type of a specific size is `SizedVEBTree<BITS>`.
-pub trait VEBTree: private::ZeroableSeal + core::fmt::Debug {
+pub trait VEBTree: private::Sealed + core::fmt::Debug {
     /// Trait object version of `VEBTreeWithConstants::CAPACITY`.
     fn capacity(&self) -> usize;
+
+    #[cfg(feature = "dyn_capacity")]
+    /// Initialize the `DeepMaybeUninitialized`
+    /// variant of the struct, making `.assume_init()`
+    /// safe to use after.
+    /// The resulting set will be empty.
+    fn init(value: &mut <Self as HasDeepMaybeUninit>::AsDeepMaybeUninit)
+    where
+        Self: HasDeepMaybeUninit;
 
     /// Clears the set, removing all elements.
     fn clear(&mut self);
@@ -182,6 +193,7 @@ pub trait VEBTree: private::ZeroableSeal + core::fmt::Debug {
         VEBIterator {
             tree: self,
             next_start: 0,
+            prev_end: self.capacity(),
         }
     }
 }
@@ -192,6 +204,7 @@ pub trait VEBTree: private::ZeroableSeal + core::fmt::Debug {
 pub struct VEBIterator<'a> {
     tree: &'a dyn VEBTree,
     next_start: usize,
+    prev_end: usize,
 }
 
 impl<'a> Iterator for VEBIterator<'a> {
@@ -203,6 +216,18 @@ impl<'a> Iterator for VEBIterator<'a> {
         } else {
             let value = self.tree.next(self.next_start)?;
             self.next_start = value + 1;
+            Some(value)
+        }
+    }
+}
+
+impl<'a> DoubleEndedIterator for VEBIterator<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.prev_end == 0 {
+            None
+        } else {
+            let value = self.tree.prev(self.prev_end - 1)?;
+            self.prev_end = value;
             Some(value)
         }
     }

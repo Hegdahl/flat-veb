@@ -6,7 +6,18 @@ edition = "2021"
 license = "MIT"
 repository = "https://github.com/Hegdahl/flat-veb"
 
+[dependencies]
+deep-maybe-uninit = { version = "0.1.0", path = "../deep-maybe-uninit/deep-maybe-uninit", optional = true }
+
 [features]
 default = ["dyn_capacity"]
 # Enables the functions new_with_capacity and new_with_bits
-dyn_capacity = []
+dyn_capacity = ["dep:deep-maybe-uninit"]
+
+[dev-dependencies]
+criterion = "0.3"
+rand = "0.8"
+
+[[bench]]
+name = "random"
+harness = false

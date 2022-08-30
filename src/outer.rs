@@ -1,10 +1,17 @@
-use crate::{private::ZeroableSeal, InnerVEBTree};
+use crate::{
+    private::{ConditionalHasDeepMaybeUninit, Sealed},
+    InnerVEBTree,
+};
+#[cfg(feature = "dyn_capacity")]
+use deep_maybe_uninit::{DeepMaybeUninit, HasDeepMaybeUninit};
 
 /// Recursive implementation of a van Emde Boas Tree.
+#[cfg_attr(feature = "dyn_capacity", derive(DeepMaybeUninit))]
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub struct VEBTree<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
     upper: Upper,
     lower: [Lower; UPPER_CAPACITY],
@@ -12,19 +19,17 @@ where
     max: usize,
 }
 
-// Safety:
-// All members are zeroable.
-unsafe impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> ZeroableSeal
+impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> Sealed
     for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
 }
 
 impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> Default
     for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
     fn default() -> Self {
         Self::new()
@@ -34,7 +39,7 @@ where
 impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> core::fmt::Debug
     for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_set().entries(crate::VEBTree::iter(self)).finish()
@@ -44,7 +49,7 @@ where
 impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> InnerVEBTree
     for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
     const BITS: usize = Upper::BITS + Lower::BITS;
 }
@@ -52,7 +57,7 @@ where
 impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree>
     VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
     pub fn new() -> Self {
         Self {
@@ -61,6 +66,16 @@ where
             min: usize::MAX,
             max: usize::MAX,
         }
+    }
+
+    #[cfg(feature = "dyn_capacity")]
+    pub fn init(value: &mut <Self as HasDeepMaybeUninit>::AsDeepMaybeUninit) {
+        Upper::init(&mut value.upper);
+        for lower in value.lower.iter_mut() {
+            Lower::init(lower);
+        }
+        value.min = usize::MAX.forget_init();
+        value.max = usize::MAX.forget_init();
     }
 
     fn ul(x: usize) -> (usize, usize) {
@@ -230,10 +245,15 @@ where
 impl<const UPPER_CAPACITY: usize, Upper: InnerVEBTree, Lower: InnerVEBTree> crate::VEBTree
     for VEBTree<UPPER_CAPACITY, Upper, Lower>
 where
-    [(); UPPER_CAPACITY]:,
+    [(); UPPER_CAPACITY]: ConditionalHasDeepMaybeUninit,
 {
     fn capacity(&self) -> usize {
         Self::capacity()
+    }
+
+    #[cfg(feature = "dyn_capacity")]
+    fn init(value: &mut <Self as HasDeepMaybeUninit>::AsDeepMaybeUninit) {
+        Self::init(value);
     }
 
     fn clear(&mut self) {
